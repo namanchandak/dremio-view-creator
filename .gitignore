@@ -1,1 +1,5 @@
 node_modules
+src/.venv
+src/.env
+generated_queries.json
+generated_queries.sql
