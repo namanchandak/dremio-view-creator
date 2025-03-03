@@ -1,0 +1,27 @@
+{
+  "name": "Script-Server",
+  "version": "1.0.0",
+  "description": "server to fire scirpt to extract json field from production database",
+  "main": "index.js",
+  "author": "naman chandak",
+  "license": "MIT",
+  "dependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.8",
+    "express": "^4.21.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "start": "npx nodemon src/index.ts",
+    "build": "tsc",
+    "serve": "node dist/index.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "eslint": "^9.21.0",
+    "globals": "^16.0.0",
+    "nodemon": "^3.1.9",
+    "typescript-eslint": "^8.25.0"
+  }
+}
