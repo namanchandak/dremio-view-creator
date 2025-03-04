@@ -5,6 +5,7 @@
   "main": "index.js",
   "author": "naman chandak",
   "license": "MIT",
+  "type": "module",
   "dependencies": {
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.8",
