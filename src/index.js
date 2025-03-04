@@ -55,7 +55,7 @@ app.get("/get-data", (req, res) => {
 
 app.get("/get-extracted-keys", (req, res) => {
   fs.readFile(
-    "/home/mohit/Projects/dice/Script-Server/extracted_json_keys.json",
+    "/app/extracted_json_keys.json", //path for docker container
     "utf-8"
   ).then((data) => {
     res.json(JSON.parse(data));
@@ -63,7 +63,7 @@ app.get("/get-extracted-keys", (req, res) => {
 });
 app.get("/get-extracted-values", (req, res) => {
   fs.readFile(
-    "/home/mohit/Projects/dice/Script-Server/extracted_json_array_data.json",
+    "/app/extracted_json_array_data.json", //path for docker container
     "utf-8"
   ).then((data) => {
     res.json(JSON.parse(data));
