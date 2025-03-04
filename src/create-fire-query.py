@@ -17,7 +17,7 @@ HEADERS = {"Authorization": f"Bearer {DREMIO_API_TOKEN}"}
 
 COMPANY_ID = sys.argv[1] if len(sys.argv)>1 else os.getenv("COMPANY_ID")
 DB_PREFIX = '"saas-main-db".fintrip.'
-
+print('COMPANY_ID:', COMPANY_ID), print('DB_PREFIX:', DB_PREFIX), print('DREMIO_HOST:', DREMIO_HOST), print('VIEW_SPACE:', VIEW_SPACE), print('DREMIO_API_TOKEN:', DREMIO_API_TOKEN), print('HEADERS:', HEADERS), print('DB_PREFIX:', DB_PREFIX),
 # -------------------------------------------------
 # Load JSON from file
 # -------------------------------------------------
@@ -30,6 +30,7 @@ with open(json_file, "r", encoding="utf-8") as f:
 # using the Dremio API
 # -------------------------------------------------
 def get_table_columns(table_name):
+    # print(f"Fetching columns for {table_name} {COMPANY_ID} from Dremio API...")
     """
     Fetch all available columns for a table using Dremio API.
     """
@@ -42,6 +43,7 @@ def get_table_columns(table_name):
         if "fields" in table_info:
             return [field["name"] for field in table_info["fields"]]
         else:
+
             print(f"⚠️ No columns found for {table_name} in API response.")
             return []
     else:
@@ -102,8 +104,8 @@ for full_table_name, columns in json_data.items():
             # Build query for handling both string and number (integer or decimal)
             column_list.append(
                 f"COALESCE("
-                f"NULLIF(REGEXP_EXTRACT({json_col}, r'\"{normalized_key}\":\s*(\"[^\"]*\")', 1), ''), "  # Match string
-                f"NULLIF(REGEXP_EXTRACT({json_col}, r'\"{normalized_key}\":\s*(\d+(\.\d+)?)', 1), '')"   # Match number
+                f"NULLIF(REGEXP_EXTRACT({json_col}, '\"{normalized_key}\":\s(\"[^\"]\")', 1), ''), "  # Match string
+                f"NULLIF(REGEXP_EXTRACT({json_col}, '\"{normalized_key}\":\s*(\d+(\.\d+)?)', 1), '')"   # Match number
                 f") AS {final_alias}"
             )
 

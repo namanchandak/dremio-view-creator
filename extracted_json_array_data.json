@@ -1,0 +1,51 @@
+{
+    "stage.fintrip_expense_vouchers": {
+        "forms": {
+            "nested_keys": [
+                "Distance Travelled",
+                "Voucher Type",
+                "month",
+                "purpose_visit",
+                "purpose_visit_voucher"
+            ]
+        }
+    },
+    "stage.fintrip_integration_events": {
+        "forms": {
+            "nested_keys": [
+                "Distance Travelled",
+                "Emulator Email Address",
+                "Emulator Emp Code",
+                "Emulator Name",
+                "Voucher Type",
+                "month",
+                "purpose_visit",
+                "purpose_visit_voucher"
+            ]
+        }
+    },
+    "stage.fintrip_ooo_trips": {
+        "forms": {
+            "nested_keys": [
+                "Emulator Email Address",
+                "Emulator Emp Code",
+                "Emulator Name",
+                "projectApproval"
+            ]
+        }
+    },
+    "stage.fintrip_permissions": {
+        "forms": {
+            "nested_keys": [
+                "Distance Travelled",
+                "Emulator Email Address",
+                "Emulator Emp Code",
+                "Emulator Name",
+                "Voucher Type",
+                "month",
+                "purpose_visit",
+                "purpose_visit_voucher"
+            ]
+        }
+    }
+}
