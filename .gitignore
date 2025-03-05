@@ -1,0 +1,6 @@
+.env
+.venv
+__pycache__
+*.pyc
+generated_queries.json
+generated_queries.sql
