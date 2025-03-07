@@ -56,7 +56,7 @@ for table in all_tables:
     # Build source and target names
     source_table = f'{DB_PREFIX}"{table}"'
     target_view = f'{VIEW_SPACE}"{table}"'
-    table_alias = table.replace(".", "_").replace("-", "_")
+    table_alias = table.replace("fintrip_", "").replace("vc_", "").replace(".", "_").replace("-", "_")
 
     # Get all columns from the table (even if the table is empty)
     all_columns = get_table_columns(table)
