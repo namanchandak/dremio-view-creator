@@ -7,30 +7,39 @@ load_dotenv()
 
 VIEW_SPACE = os.getenv("VIEW_SPACE")
 
-
 # Dremio API Configurations
 DREMIO_HOST = os.getenv("DREMIO_HOST")
 DREMIO_API_TOKEN = os.getenv("DREMIO_API_TOKEN")
-
 HEADERS = {"Authorization": f"Bearer {DREMIO_API_TOKEN}"}
 
 COMPANY_ID = os.getenv("COMPANY_ID")
 DB_PREFIX = '"saas-main-db".fintrip.'
 
 # -------------------------------------------------
-# Load JSON from file
+# 1) Load the main JSON from file (the original script’s JSON)
 # -------------------------------------------------
 json_file = os.getenv("JSON_FILE")
 with open(json_file, "r", encoding="utf-8") as f:
     json_data = json.load(f)
 
 # -------------------------------------------------
-# Function to fetch all columns for a given table
-# using the Dremio API
+# 2) Load the second JSON file containing nested_keys 
+#    (e.g., "extracted_json_array_data.json")
+# -------------------------------------------------
+nested_keys_file = os.getenv("NESTED_KEYS_FILE", "extracted_json_array_data.json")
+if os.path.exists(nested_keys_file):
+    with open(nested_keys_file, "r", encoding="utf-8") as f2:
+        nested_keys_json = json.load(f2)
+else:
+    print(f"⚠️ Nested-keys file '{nested_keys_file}' not found. Proceeding without it.")
+    nested_keys_json = {}
+
+# -------------------------------------------------
+# Function to fetch all columns for a given table using the Dremio API
 # -------------------------------------------------
 def get_table_columns(table_name):
     """
-    Fetch all available columns for a table using Dremio API.
+    Fetch all available columns for a table using the Dremio API.
     """
     url = f"{DREMIO_HOST}/api/v3/catalog/by-path/saas-main-db/fintrip/{table_name}"
 
@@ -48,40 +57,45 @@ def get_table_columns(table_name):
         return []
 
 # -------------------------------------------------
-# Generate queries
+# Prepare to generate queries
 # -------------------------------------------------
 queries = []     # Store queries as JSON array
 sql_queries = [] # Store queries as SQL statements
 
-# Iterate over tables in the JSON data
+# -------------------------------------------------
+# Iterate over tables in the first JSON (json_data)
+# -------------------------------------------------
 for full_table_name, columns in json_data.items():
     """
     Example of full_table_name: 'fintrip.fintrip_mapped_services'
-    'columns' is a dict of { column_in_db: [json_keys, ...], ... } 
+    'columns' is a dict of { column_in_db: [json_keys, ...], ... }
     like { "attrs": ["category"], "tags": ["entity", ...], ... }
     """
 
-    # 1. Strip the leading 'fintrip.' if present
+    # 1) Strip the leading 'fintrip.' if present
     clean_table_name = full_table_name.replace("fintrip.", "")
 
-    # 2. Build the final FROM path for the SQL query
+    # 2) Build the final FROM path for the SQL query
     from_table_path = f'{DB_PREFIX}"{clean_table_name}"'
 
-    # 3. Fetch all columns for the table from Dremio
+    # 3) Fetch all columns for the table from Dremio
     all_columns = get_table_columns(clean_table_name)
+    # Exclude certain columns by name
     all_columns = [col for col in all_columns if col not in ("date", "search", "month", "value")]
     if not all_columns:
         print(f"⚠️ No columns fetched for table {clean_table_name}. Skipping.\n")
         continue
 
-    # 4. Create aliases for each standard column while removing 'fintrip' and 'vc' prefixes
+    # 4) Create aliases for each standard column while removing 'fintrip' and 'vc' prefixes
     column_list = []
     for col in all_columns:
-        clean_alias = clean_table_name.replace("fintrip_", "").replace("vc_", "")  # Remove prefixes
-        col_alias = f"{col}_{clean_alias}"
+        # e.g., "fintrip_vc_purchase_order" -> "purchase_order"
+        clean_table_alias = clean_table_name.replace("fintrip_", "").replace("vc_", "")
+        clean_col = col.replace("fintrip_", "").replace("vc_", "")
+        col_alias = f"{clean_col}_{clean_table_alias}"
         column_list.append(f'{col} AS {col_alias}')
 
-    # 5. Build REGEXP_EXTRACT columns based on JSON keys with the new aliasing format
+    # 5) Build REGEXP_EXTRACT columns based on JSON keys in the first JSON
     for json_col, keys in columns.items():
         json_col_alias = json_col.replace(".", "_").replace("-", "_")
         for key in keys:
@@ -92,19 +106,63 @@ for full_table_name, columns in json_data.items():
             clean_alias = clean_table_name.replace("fintrip_", "").replace("vc_", "")
 
             # New alias format: key_column_table
-            final_alias = f"{key_alias}_{json_col}_{clean_alias}".replace(" ", "_").replace("@", "_").replace("*", "_").replace("/", "_")
+            final_alias = f"{key_alias}_{json_col}_{clean_alias}"
+            # Also remove or replace certain chars (space, @, etc.)
+            final_alias = final_alias.replace(" ", "_").replace("@", "_").replace("*", "_").replace("/", "_")
 
-            # print(f"Processing: {key_alias} -> {json_col} -> {clean_alias}")
-
-            # Build query for handling both string and number (integer or decimal)
+            # Build query for handling both string and number
             column_list.append(
                 f"COALESCE("
-                f"NULLIF(REGEXP_EXTRACT({json_col}, '\"{normalized_key}\":\s*(\"[^\"]*\")', 1), ''), "  # Match string
-                f"NULLIF(REGEXP_EXTRACT({json_col}, '\"{normalized_key}\":\s*(\d+(\.\d+)?)', 1), '')"   # Match number
+                f"NULLIF(REGEXP_EXTRACT({json_col}, '\"{normalized_key}\":\\s*(\"[^\"]*\")', 1), ''), "  # Match string
+                f"NULLIF(REGEXP_EXTRACT({json_col}, '\"{normalized_key}\":\\s*(\\d+(\\.\\d+)?)', 1), '')"
                 f") AS {final_alias}"
             )
 
-    # 6. Construct the final SQL query
+    # -------------------------------------------------
+    # 6) Check if this table also exists in the second JSON (nested_keys_json)
+    #    and generate additional expressions for the "forms" column
+    # -------------------------------------------------
+    if full_table_name in nested_keys_json:
+        # Expect structure like: 
+        # "fintrip.vc_purchase_order": {
+        #   "forms": {
+        #       "nested_keys": [ "costcenterpo", "remarks", ... ]
+        #   }
+        # }
+        table_obj = nested_keys_json[full_table_name]
+        if "forms" in table_obj and "nested_keys" in table_obj["forms"]:
+            forms_keys = table_obj["forms"]["nested_keys"]
+
+            # We'll call the column "forms" for the JSON column name
+            json_col = "forms"
+            # e.g., "vc_purchase_order" -> "purchase_order"
+            clean_alias = clean_table_name.replace("fintrip_", "").replace("vc_", "")
+
+            for raw_key in forms_keys:
+                # Some keys may have leading/trailing spaces
+                raw_key = raw_key.strip()
+                if not raw_key:
+                    continue  # skip empty keys
+
+                normalized_key = raw_key.replace(".", "_").replace("-", "_").replace(" ", "_")
+
+                # We'll build the final alias
+                final_alias = f"{normalized_key}_{json_col}_{clean_alias}"
+                # Remove or replace certain special chars if needed
+                final_alias = final_alias.replace("@", "_").replace("*", "_").replace("/", "_")
+
+                # Add the new REGEXP_EXTRACT expression referencing "forms"
+                # (We do the same string/number approach)
+                column_list.append(
+                    f"COALESCE("
+                    f"NULLIF(REGEXP_EXTRACT({json_col}, '\"id\":\"{raw_key}\"\\s*,\"value\":\"([^\"\\r\\n]+)\"', 1), ''), " 
+                    f"NULLIF(REGEXP_EXTRACT({json_col}, '\"id\":\"{raw_key}\"\\s*,\"value\":\"(\\d+(\\.\\d+)?)', 1), '')"
+                    f") AS {final_alias}"
+                )
+
+    # -------------------------------------------------
+    # 7) Construct the final SQL query
+    # -------------------------------------------------
     query = "SELECT\n    " + ",\n    ".join(column_list)
     query += f"\nFROM {from_table_path} WHERE company_id = {COMPANY_ID};"
 
@@ -119,8 +177,7 @@ for full_table_name, columns in json_data.items():
     else:
         print(f"❌ Failed to create/update VDS for table '{full_table_name}': {response.text}")
 
-
-    # 7. Store queries in both JSON and SQL structures
+    # 9) Store queries in both JSON and SQL structures
     queries.append({"table": full_table_name, "query": query})
     sql_queries.append(query)
 
