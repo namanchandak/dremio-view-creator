@@ -2,6 +2,8 @@ import json
 import requests
 import os
 from dotenv import load_dotenv
+import re
+
 
 load_dotenv()
 
@@ -107,8 +109,8 @@ for full_table_name, columns in json_data.items():
             # New alias format: key_column_table
             final_alias = f"{key_alias}_{json_col}_{clean_alias}"
             # Also remove or replace certain chars (space, @, etc.)
-            final_alias = final_alias.replace(" ", "_").replace("@", "_").replace("*", "_").replace("/", "_").replace("#", "_").replace("(", "_").replace(")", "_").replace("%", "_").replace(":", "_")
-
+            final_alias = final_alias.replace(" ", "_").replace("@", "_").replace("*", "_").replace("/", "_").replace("#", "_").replace("(", "_").replace(")", "_").replace("%", "_").replace(":", "_").replace("{", "_").replace("}", "_").replace(",", "_")
+            final_alias = re.sub(r"^\d+", "", final_alias)  # Removes leading numbers
             # Build query for handling both string and number
             column_list.append(
                 f"COALESCE("
@@ -148,8 +150,8 @@ for full_table_name, columns in json_data.items():
                 # We'll build the final alias
                 final_alias = f"{normalized_key}_{json_col}_{clean_alias}"
                 # Remove or replace certain special chars if needed
-                final_alias = final_alias.replace("@", "_").replace("*", "_").replace("/", "_").replace("#", "_").replace("(", "_").replace(")", "_").replace("%", "_").replace(":", "_")
-
+                final_alias = final_alias.replace("@", "_").replace("*", "_").replace("/", "_").replace("#", "_").replace("(", "_").replace(")", "_").replace("%", "_").replace(":", "_").replace("{", "_").replace("}", "_").replace(",", "_")
+                final_alias = re.sub(r"^\d+", "", final_alias)  # Removes leading numbers
                 # Add the new REGEXP_EXTRACT expression referencing "forms"
                 # (We do the same string/number approach)
                 column_list.append(
