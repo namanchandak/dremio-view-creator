@@ -1,0 +1,6 @@
+.env
+array.json
+key.json
+tables_columns.json
+generated_queries.sql
+generated_queries.json
