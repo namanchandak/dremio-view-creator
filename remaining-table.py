@@ -75,7 +75,7 @@ for table in all_tables:
             column_list.append(f'{column} AS {column_alias}')
 
     # Construct the SQL query for the view.
-    query = f"CREATE OR REPLACE VDS {target_view} AS\nSELECT \n    " + ",\n    ".join(column_list)
+    query = f"CREATE VDS {target_view} AS\nSELECT \n    " + ",\n    ".join(column_list)
     query += f"\nFROM {source_table} WHERE company_id = {COMPANY_ID};"
 
     if(table == "fintrip_programme_policies"):
